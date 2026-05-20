@@ -10,7 +10,7 @@
 
   @page {
     size: A4 portrait;
-    margin: 14mm;
+    margin: 14mm 14mm 0 14mm;
   }
 
   html, body {
@@ -31,12 +31,14 @@
     padding: 0;
     background: #fff;
     display: block;
+    position: relative;
   }
 
   .main {
     width: 100%;
     max-width: 100%;
     overflow: visible;
+    padding-bottom: 46mm;
   }
 
   .logo-block { text-align: center; margin: 2mm 0 10mm; }
@@ -157,16 +159,19 @@
   .conditions p { margin: 0; }
 
   .page-footer {
-    display: block;
-    margin: 6mm -14mm 0 -14mm;
-    width: calc(100% + 28mm);
-    max-width: 210mm;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 210mm;
+    margin: 0;
     padding: 0;
     line-height: 0;
+    z-index: 10;
     page-break-inside: avoid;
   }
   .footer-img {
-    width: 100%;
+    width: 210mm;
+    max-width: 210mm;
     height: auto;
     display: block;
     margin: 0;
