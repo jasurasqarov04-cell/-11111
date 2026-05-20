@@ -107,18 +107,18 @@ def _start_render_keepalive() -> None:
     ASK_ITEM_PRICE,
     ASK_ITEM_QTY,
     ASK_MORE,
-    ASK_COL_SETTING,
-) = range(9)
+) = range(8)
 
-COL_SETTINGS = [
-    ("show_density", "колонку «Плотность»"),
-    ("show_size", "колонку «Размер»"),
-    ("show_qty", "колонку «Кол-во»"),
-    ("show_unit", "колонку «Ед.изм»"),
-    ("show_price", "колонку «Цена с НДС»"),
-    ("show_line_total", "колонку «Сумма» по позициям"),
-    ("show_total", "строку «Сумма» под таблицей"),
-]
+# Все колонки таблицы в PDF включены по умолчанию
+PDF_TABLE_DEFAULTS = {
+    "show_density": True,
+    "show_size": True,
+    "show_qty": True,
+    "show_unit": True,
+    "show_price": True,
+    "show_line_total": True,
+    "show_total": True,
+}
 
 UNIT_KEYBOARD = ReplyKeyboardMarkup(
     [["м³", "м²", "шт"]],
@@ -129,13 +129,6 @@ UNIT_KEYBOARD = ReplyKeyboardMarkup(
 SKIP_KB = InlineKeyboardMarkup([[
     InlineKeyboardButton("Пропустить", callback_data="skip"),
 ]])
-
-YES_SKIP_KB = InlineKeyboardMarkup([
-    [
-        InlineKeyboardButton("Показывать", callback_data="col_yes"),
-        InlineKeyboardButton("Пропустить", callback_data="col_skip"),
-    ],
-])
 
 NDS_KB = InlineKeyboardMarkup([
     [InlineKeyboardButton("Да — НДС 12%", callback_data="nds_12")],
@@ -270,8 +263,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/start — новое КП\n"
         "/cancel — отмена\n\n"
         "Товар — из каталога или вручную (кнопка «Другое»).\n"
-        "Перед PDF — настройка колонок таблицы (показать / пропустить).\n"
-        "Пропустить = в PDF будет «—».",
+        "Кнопка «Создать КП (PDF)» — сразу формирует документ.",
         parse_mode="Markdown",
     )
 
@@ -435,40 +427,9 @@ async def step_more(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return await _ask_product(q.message, context)
 
     await q.message.edit_reply_markup(reply_markup=None)
-    context.user_data["_col_step"] = 0
-    key, label = COL_SETTINGS[0]
-    await q.message.reply_text(
-        "*Настройка таблицы в PDF*\n\n"
-        f"Показывать {label}?\n"
-        "_Пропустить — в ячейках будет «—»_",
-        parse_mode="Markdown",
-        reply_markup=YES_SKIP_KB,
-    )
-    return ASK_COL_SETTING
-
-
-async def step_col_setting(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    step = context.user_data.get("_col_step", 0)
-    key, label = COL_SETTINGS[step]
-    context.user_data[key] = q.data == "col_yes"
-
-    step += 1
-    if step >= len(COL_SETTINGS):
-        await q.message.edit_reply_markup(reply_markup=None)
-        await q.message.reply_text("Формируется PDF-документ…")
-        await _do_generate(q.message, context)
-        return ConversationHandler.END
-
-    context.user_data["_col_step"] = step
-    _, next_label = COL_SETTINGS[step]
-    await q.message.edit_text(
-        f"Показывать {next_label}?\n_Пропустить — «—» в PDF_",
-        parse_mode="Markdown",
-        reply_markup=YES_SKIP_KB,
-    )
-    return ASK_COL_SETTING
+    await q.message.reply_text("Формируется PDF-документ…")
+    await _do_generate(q.message, context)
+    return ConversationHandler.END
 
 
 async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -496,13 +457,7 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         "nds_fmt": fmt_num(nds_amount) if nds_amount else None,
         "subtotal_fmt": fmt_num(subtotal),
         "grand_total_fmt": fmt_num(grand),
-        "show_density": ud.get("show_density", True),
-        "show_size": ud.get("show_size", True),
-        "show_qty": ud.get("show_qty", True),
-        "show_unit": ud.get("show_unit", True),
-        "show_price": ud.get("show_price", True),
-        "show_line_total": ud.get("show_line_total", True),
-        "show_total": ud.get("show_total", True),
+        **PDF_TABLE_DEFAULTS,
         "items": items,
     }
 
@@ -510,7 +465,7 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         pdf_bytes = generate_pdf(data)
         bio = BytesIO(pdf_bytes)
         bio.name = f"KP_{kp_number}.pdf"
-        total_note = f"Сумма в PDF: *{fmt_num(grand)} сум*" if ud.get("show_total") else "Сумма под таблицей скрыта"
+        total_note = f"Сумма в PDF: *{fmt_num(grand)} сум*"
         await message.reply_document(
             document=bio,
             filename=f"KP_{kp_number}.pdf",
@@ -565,9 +520,6 @@ def main() -> None:
             ASK_ITEM_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_price)],
             ASK_ITEM_QTY: [MessageHandler(filters.TEXT & ~filters.COMMAND, step_qty)],
             ASK_MORE: [CallbackQueryHandler(step_more, pattern="^(add_more|generate)$")],
-            ASK_COL_SETTING: [
-                CallbackQueryHandler(step_col_setting, pattern="^col_"),
-            ],
         },
         fallbacks=[CommandHandler("cancel", cmd_cancel)],
         allow_reentry=True,
