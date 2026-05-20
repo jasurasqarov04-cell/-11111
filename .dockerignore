@@ -1,0 +1,12 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.env
+.env.*
+*.md
+test_kp.pdf
+.kp_counter
+.cursor
+deploy/

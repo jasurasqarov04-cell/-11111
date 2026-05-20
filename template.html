@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+  /* Гротеск в духе кнопки «Thermo Facade»: Montserrat ≈ Roboto / Open Sans */
+  @import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  @page { size: A4; margin: 0; }
+
+  body {
+    font-family: "Montserrat", "Segoe UI", Roboto, "Open Sans", "Helvetica Neue", Arial, sans-serif;
+    font-size: 10pt;
+    font-weight: 400;
+    color: #1a1a1a;
+    background: #fff;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto;
+    padding: 14mm 14mm 0;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main { flex: 1 0 auto; }
+
+  .logo-block { text-align: center; margin: 2mm 0 10mm; }
+  .logo-img { height: 46px; width: auto; display: inline-block; }
+
+  .company-box {
+    border: 2px solid #e3000e;
+    border-radius: 16px;
+    padding: 11px 20px 10px;
+    text-align: center;
+    margin: 0 auto 17mm;
+    line-height: 1.5;
+    font-size: 9.5pt;
+  }
+  .company-box .company-title { font-weight: 700; font-size: 10pt; margin-bottom: 3px; }
+  .company-box p { margin: 0; }
+
+  .intro {
+    font-size: 11pt;
+    line-height: 1.42;
+    margin-bottom: 5mm;
+    text-align: left;
+    font-weight: 700;
+  }
+
+  .intro-list {
+    margin: 0 0 20mm 0;
+    padding: 0;
+    list-style: none;
+    font-size: 10pt;
+    line-height: 1.48;
+  }
+  .intro-list li { margin-bottom: 2px; }
+  .intro-list li::before { content: "- "; }
+
+  .table-wrap {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #d5d5d5;
+    margin: 0 0 4mm 0;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5pt; }
+  thead tr { background: #e3000e; color: #fff; }
+  thead th {
+    padding: 7px 6px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 10pt;
+    border-right: 1px solid rgba(255,255,255,0.22);
+  }
+  thead th:last-child { border-right: none; }
+  thead th.td-name { text-align: left; padding-left: 10px; }
+  tbody td {
+    padding: 9px 6px;
+    text-align: center;
+    border-right: 1px solid #e2e2e2;
+    border-bottom: 1px solid #e2e2e2;
+    vertical-align: middle;
+  }
+  tbody td:last-child { border-right: none; }
+  tbody tr:last-child td { border-bottom: none; }
+  .td-name { text-align: left; padding-left: 10px; min-width: 90px; }
+  tbody td.td-name { font-weight: 500; }
+
+  .table-total {
+    text-align: right;
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 0 0 8mm 0;
+    padding-right: 4px;
+  }
+
+  .conditions { font-size: 10pt; line-height: 1.55; }
+  .conditions p { margin: 0; }
+
+  .page-footer {
+    flex-shrink: 0;
+    margin-top: auto;
+    margin-left: -14mm;
+    margin-right: -14mm;
+    width: calc(100% + 28mm);
+    height: 42mm;
+    padding-top: 10mm;
+    background: url("assets/4564516.png") no-repeat left bottom;
+    background-size: 100% 100%;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="main">
+    <div class="logo-block">
+      <img class="logo-img" src="assets/logo.png" alt="THERMO PLUS">
+    </div>
+
+    <div class="company-box">
+      <p class="company-title">СП ООО «KHOREZM INSULATION GROUP»</p>
+      <p>Республика Узбекистан, Хорезмская область, г. Урганч, ул. Саноатчилар дом № 1.</p>
+      <p>ИНН: 308 351 049, р/с: 20 208 000 505 368 522 001, USD: 20208 840 505 368 522 005,</p>
+      <p>Банк: АКБ "Узпромстройбанк" головной офис, МФО: 00440; ОКЕД: 23990; SWIFT: ULSIUZ22</p>
+      <p>РЕГИСТРАЦИОННЫЙ НОМЕР НДС: - 333010177397</p>
+    </div>
+
+    <p class="intro">
+      Компания KHOREZM INSULATION GROUP предлагает надежную и экологичную
+      базальтовую теплоизоляцию для широкого спектра строительных и промышленных
+      задач. Мы специализируемся на производстве и поставках базальтовой ваты,
+      которая:
+    </p>
+    <ul class="intro-list">
+      <li>Эффективно сохраняет тепло, снижая энергозатраты зданий.</li>
+      <li>Обладает высокой огнестойкостью и не поддерживает горение.</li>
+      <li>Поглощает шум, улучшая звукоизоляцию помещений.</li>
+      <li>Устойчива к воздействию влаги, плесени и микроорганизмов.</li>
+      <li>Обеспечивает долговечность и экологическую безопасность строительных решений.</li>
+    </ul>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="td-name">Наименование</th>
+            {% if show_density %}<th>Плотность</th>{% endif %}
+            {% if show_size %}<th>Размер</th>{% endif %}
+            {% if show_qty %}<th>Кол-во</th>{% endif %}
+            {% if show_unit %}<th>Ед.изм</th>{% endif %}
+            {% if show_price %}<th>Цена с НДС</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="td-name">{{ item.name }}</td>
+            {% if show_density %}
+            <td>{{ item.density_display }}</td>
+            {% endif %}
+            {% if show_size %}
+            <td>{{ item.size_display }}</td>
+            {% endif %}
+            {% if show_qty %}
+            <td>{{ item.qty_display }}</td>
+            {% endif %}
+            {% if show_unit %}
+            <td>{{ item.unit_display }}</td>
+            {% endif %}
+            {% if show_price %}
+            <td>{{ item.price_display }}</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if show_total %}
+    <div class="table-total">Сумма: {{ grand_total_fmt }}</div>
+    {% endif %}
+
+    <div class="conditions">
+      <p>• Условия оплаты: 100% предоплата;</p>
+      <p>• Страна производителя: Республика Узбекистан;</p>
+      <p>• Условия доставки: Самовывоз или доставка до объекта покупателя;</p>
+    </div>
+  </div>
+
+  <div class="page-footer"></div>
+
+</div>
+</body>
+</html>
