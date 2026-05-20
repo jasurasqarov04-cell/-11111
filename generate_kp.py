@@ -125,6 +125,7 @@ def _prepare_items(items: list, table_opts: dict | None = None) -> list:
     show_qty = opts.get("show_qty", True)
     show_unit = opts.get("show_unit", True)
     show_price = opts.get("show_price", True)
+    show_line_total = opts.get("show_line_total", True)
 
     prepared = []
     for item in items:
@@ -150,6 +151,7 @@ def _prepare_items(items: list, table_opts: dict | None = None) -> list:
             _format_unit_display(unit) if unit else None, show_unit
         )
         row["price_display"] = _cell(item.get("price_fmt"), show_price)
+        row["line_total_display"] = _cell(item.get("total_fmt"), show_line_total)
         prepared.append(row)
     return prepared
 
@@ -179,6 +181,7 @@ def generate_pdf(data: dict) -> bytes:
         "show_qty": data.get("show_qty", True),
         "show_unit": data.get("show_unit", True),
         "show_price": data.get("show_price", True),
+        "show_line_total": data.get("show_line_total", True),
     }
     render_data.update(table_opts)
     render_data["show_total"] = data.get("show_total", True)
@@ -256,6 +259,7 @@ if __name__ == "__main__":
         "show_qty": True,
         "show_unit": True,
         "show_price": True,
+        "show_line_total": True,
         "show_total": True,
         "items": [
             {

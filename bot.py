@@ -116,6 +116,7 @@ COL_SETTINGS = [
     ("show_qty", "колонку «Кол-во»"),
     ("show_unit", "колонку «Ед.изм»"),
     ("show_price", "колонку «Цена с НДС»"),
+    ("show_line_total", "колонку «Сумма» по позициям"),
     ("show_total", "строку «Сумма» под таблицей"),
 ]
 
@@ -500,6 +501,7 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         "show_qty": ud.get("show_qty", True),
         "show_unit": ud.get("show_unit", True),
         "show_price": ud.get("show_price", True),
+        "show_line_total": ud.get("show_line_total", True),
         "show_total": ud.get("show_total", True),
         "items": items,
     }

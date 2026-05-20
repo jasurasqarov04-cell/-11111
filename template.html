@@ -112,7 +112,8 @@
   }
   thead th.td-name { text-align: left; padding-left: 8px; width: 28%; }
   thead th.col-num { width: 11%; }
-  thead th.col-price { width: 14%; }
+  thead th.col-price { width: 12%; }
+  thead th.col-sum { width: 13%; }
   tbody td {
     padding: 7px 4px;
     text-align: center;
@@ -221,6 +222,7 @@
             {% if show_qty %}<th class="col-num">Кол-во</th>{% endif %}
             {% if show_unit %}<th class="col-num">Ед.изм</th>{% endif %}
             {% if show_price %}<th class="col-price">Цена с НДС</th>{% endif %}
+            {% if show_line_total %}<th class="col-sum">Сумма</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -241,6 +243,9 @@
             {% endif %}
             {% if show_price %}
             <td>{{ item.price_display }}</td>
+            {% endif %}
+            {% if show_line_total %}
+            <td>{{ item.line_total_display }}</td>
             {% endif %}
           </tr>
           {% endfor %}
