@@ -10,7 +10,7 @@
 
   @page {
     size: A4 portrait;
-    margin: 14mm 14mm 0 14mm;
+    margin: 14mm 0 0 0;
   }
 
   html, body {
@@ -38,7 +38,7 @@
     width: 100%;
     max-width: 100%;
     overflow: visible;
-    padding-bottom: 46mm;
+    padding: 0 14mm 46mm 14mm;
   }
 
   .logo-block { text-align: center; margin: 2mm 0 10mm; }
@@ -162,7 +162,9 @@
     position: fixed;
     bottom: 0;
     left: 0;
+    right: 0;
     width: 210mm;
+    max-width: 210mm;
     margin: 0;
     padding: 0;
     line-height: 0;
@@ -170,12 +172,12 @@
     page-break-inside: avoid;
   }
   .footer-img {
-    width: 210mm;
-    max-width: 210mm;
+    width: 100%;
     height: auto;
     display: block;
     margin: 0;
     border: 0;
+    vertical-align: bottom;
   }
 </style>
 </head>
