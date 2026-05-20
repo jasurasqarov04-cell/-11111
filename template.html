@@ -74,7 +74,7 @@
 
   .table-wrap {
     border-radius: 14px;
-    overflow: visible;
+    overflow: hidden;
     border: 1px solid #d5d5d5;
     margin: 0 0 4mm 0;
     width: 100%;
@@ -84,7 +84,8 @@
     width: 100%;
     max-width: 100%;
     table-layout: fixed;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 9.5pt;
   }
   thead tr { background: #e3000e; color: #fff; }
@@ -93,12 +94,20 @@
     text-align: center;
     font-weight: 700;
     font-size: 8.5pt;
+    background: #e3000e;
+    border: none;
     border-right: 1px solid rgba(255,255,255,0.22);
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
   }
-  thead th:last-child { border-right: none; }
+  thead th:first-child {
+    border-top-left-radius: 14px;
+  }
+  thead th:last-child {
+    border-top-right-radius: 14px;
+    border-right: none;
+  }
   thead th.td-name { text-align: left; padding-left: 8px; width: 28%; }
   thead th.col-num { width: 11%; }
   thead th.col-price { width: 14%; }
@@ -112,7 +121,15 @@
     overflow-wrap: break-word;
   }
   tbody td:last-child { border-right: none; }
-  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+  tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 14px;
+  }
+  tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 14px;
+  }
   .td-name {
     text-align: left;
     padding-left: 8px;
