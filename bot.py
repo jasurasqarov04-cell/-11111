@@ -110,6 +110,7 @@ def _start_render_keepalive() -> None:
 
 # НДС в расчёте по умолчанию (без отдельного шага после /start)
 DEFAULT_NDS_RATE = 12
+COMPANY_BRAND = "Thermo Plus"
 
 # Все колонки таблицы в PDF включены по умолчанию
 PDF_TABLE_DEFAULTS = {
@@ -443,21 +444,15 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         "items": items,
     }
 
+    pdf_name = f"{COMPANY_BRAND} {today}.pdf"
     try:
         pdf_bytes = generate_pdf(data)
         bio = BytesIO(pdf_bytes)
-        bio.name = f"KP_{kp_number}.pdf"
-        total_note = f"Сумма в PDF: *{fmt_num(grand)} сум*"
+        bio.name = pdf_name
         await message.reply_document(
             document=bio,
-            filename=f"KP_{kp_number}.pdf",
-            caption=(
-                f"*Коммерческое предложение сформировано.*\n"
-                f"Номер: `{kp_number}`\n"
-                f"Позиций: {len(items)}. {total_note}\n\n"
-                f"/start — новое предложение"
-            ),
-            parse_mode="Markdown",
+            filename=pdf_name,
+            caption=today,
         )
     except Exception as e:
         logger.exception("Ошибка генерации PDF")
