@@ -382,7 +382,7 @@ async def step_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     all_items = context.user_data["items"]
     grand = sum(i["total"] for i in all_items)
-    nds_rate = context.user_data.get("nds_rate", 0)
+    nds_rate = context.user_data.get("nds_rate", DEFAULT_NDS_RATE)
     nds_line = ""
     if nds_rate:
         nds_sum = grand * nds_rate / (100 + nds_rate)
