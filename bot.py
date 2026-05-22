@@ -99,7 +99,6 @@ def _start_render_keepalive() -> None:
 
 
 (
-    ASK_NDS,
     ASK_PRODUCT,
     ASK_CUSTOM_NAME,
     ASK_ITEM_THICK,
@@ -107,7 +106,10 @@ def _start_render_keepalive() -> None:
     ASK_ITEM_PRICE,
     ASK_ITEM_QTY,
     ASK_MORE,
-) = range(8)
+) = range(7)
+
+# НДС в расчёте по умолчанию (без отдельного шага после /start)
+DEFAULT_NDS_RATE = 12
 
 # Все колонки таблицы в PDF включены по умолчанию
 PDF_TABLE_DEFAULTS = {
@@ -129,11 +131,6 @@ UNIT_KEYBOARD = ReplyKeyboardMarkup(
 SKIP_KB = InlineKeyboardMarkup([[
     InlineKeyboardButton("Пропустить", callback_data="skip"),
 ]])
-
-NDS_KB = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Да — НДС 12%", callback_data="nds_12")],
-    [InlineKeyboardButton("Нет (без НДС)", callback_data="nds_0")],
-])
 
 MORE_KB = InlineKeyboardMarkup([
     [InlineKeyboardButton("Добавить позицию", callback_data="add_more")],
@@ -237,14 +234,8 @@ async def _ask_thickness(msg, context) -> int:
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     context.user_data["items"] = []
-    await update.message.reply_text(
-        "*Коммерческое предложение*\n"
-        "_KHOREZM INSULATION GROUP_\n\n"
-        "Учитывать *НДС* в расчёте?",
-        parse_mode="Markdown",
-        reply_markup=NDS_KB,
-    )
-    return ASK_NDS
+    context.user_data["nds_rate"] = DEFAULT_NDS_RATE
+    return await _ask_product(update.message, context)
 
 
 async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -266,15 +257,6 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "Кнопка «Создать КП (PDF)» — сразу формирует документ.",
         parse_mode="Markdown",
     )
-
-
-async def step_nds(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    q = update.callback_query
-    await q.answer()
-    context.user_data["nds_rate"] = 12 if q.data == "nds_12" else 0
-    label = "12%" if context.user_data["nds_rate"] else "без НДС"
-    await q.message.edit_text(f"НДС: *{label}*", parse_mode="Markdown")
-    return await _ask_product(q.message, context)
 
 
 async def step_product_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -436,7 +418,7 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
     ud = context.user_data
     kp_number = next_kp_number()
     today = date.today().strftime("%d.%m.%Y")
-    nds_rate = ud.get("nds_rate", 0)
+    nds_rate = ud.get("nds_rate", DEFAULT_NDS_RATE)
     items = ud["items"]
 
     grand = sum(i["total"] for i in items)
@@ -504,7 +486,6 @@ def main() -> None:
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
         states={
-            ASK_NDS: [CallbackQueryHandler(step_nds, pattern="^nds_")],
             ASK_PRODUCT: [
                 CallbackQueryHandler(step_product_pick, pattern=r"^prod_\d+$"),
                 CallbackQueryHandler(step_product_other, pattern="^prod_other$"),
