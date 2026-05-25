@@ -452,7 +452,7 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_document(
             document=bio,
             filename=pdf_name,
-            caption=today,
+            caption=f"{today}\n\n/start — новое предложение",
         )
     except Exception as e:
         logger.exception("Ошибка генерации PDF")
