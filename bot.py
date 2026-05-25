@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Telegram бот для генерации Коммерческих Предложений
-KHOREZM INSULATION GROUP — каталог, настройка колонок таблицы
+Telegram бот для генерации Коммерческих Предложений KHOREZM INSULATION GROUP.
+Двуязычный (русский / o‘zbekcha): выбор языка при первом /start, далее запоминается.
 """
 
 import os
@@ -46,6 +46,8 @@ from telegram.ext import (
 
 from catalog import PRODUCTS, format_product_name
 from generate_kp import generate_pdf
+from translations import tr, units_for, SUPPORTED, DEFAULT_LANG
+from user_lang import get_lang, set_lang
 
 logging.basicConfig(
     format="%(asctime)s | %(levelname)s | %(message)s",
@@ -55,10 +57,7 @@ logger = logging.getLogger(__name__)
 
 
 def _start_render_keepalive() -> None:
-    """
-    HTTP-запрос к своему URL каждые ~14 мин — сбрасывает таймер «сна» Free Web Service на Render
-    (засыпание обычно ~15 мин без входящего трафика). Без RENDER_EXTERNAL_URL / KEEPALIVE_URL поток не стартует.
-    """
+    """HTTP-запрос к своему URL каждые ~14 мин — не даёт Render Free засыпать."""
     url = (os.environ.get("RENDER_EXTERNAL_URL") or os.environ.get("KEEPALIVE_URL") or "").strip()
     if not url:
         return
@@ -98,7 +97,9 @@ def _start_render_keepalive() -> None:
     logger.info("Keepalive (Render и др.): GET %s каждые %s с", url, interval)
 
 
+# ── Состояния ConversationHandler ────────────────────────────────────────
 (
+    ASK_LANG,
     ASK_PRODUCT,
     ASK_CUSTOM_NAME,
     ASK_ITEM_THICK,
@@ -106,13 +107,11 @@ def _start_render_keepalive() -> None:
     ASK_ITEM_PRICE,
     ASK_ITEM_QTY,
     ASK_MORE,
-) = range(7)
+) = range(8)
 
-# НДС в расчёте по умолчанию (без отдельного шага после /start)
 DEFAULT_NDS_RATE = 12
 COMPANY_BRAND = "Thermo Plus"
 
-# Все колонки таблицы в PDF включены по умолчанию
 PDF_TABLE_DEFAULTS = {
     "show_density": True,
     "show_size": True,
@@ -123,24 +122,79 @@ PDF_TABLE_DEFAULTS = {
     "show_total": True,
 }
 
-UNIT_KEYBOARD = ReplyKeyboardMarkup(
-    [["м³", "м²", "шт"]],
-    resize_keyboard=True,
-    one_time_keyboard=True,
-)
 
-SKIP_KB = InlineKeyboardMarkup([[
-    InlineKeyboardButton("Пропустить", callback_data="skip"),
-]])
+# ── Клавиатуры ───────────────────────────────────────────────────────────
 
-MORE_KB = InlineKeyboardMarkup([
-    [InlineKeyboardButton("Добавить позицию", callback_data="add_more")],
-    [InlineKeyboardButton("Создать КП (PDF)", callback_data="generate")],
+LANG_KB = InlineKeyboardMarkup([
+    [InlineKeyboardButton("Русский", callback_data="lang_ru")],
+    [InlineKeyboardButton("O‘zbekcha", callback_data="lang_uz")],
+])
+
+GLANG_KB = InlineKeyboardMarkup([
+    [InlineKeyboardButton("Русский", callback_data="glang_ru")],
+    [InlineKeyboardButton("O‘zbekcha", callback_data="glang_uz")],
 ])
 
 
+def unit_kb(lang: str) -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [units_for(lang)],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def skip_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(tr(lang, "btn_skip"), callback_data="skip"),
+    ]])
+
+
+def more_kb(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(tr(lang, "btn_add_more"), callback_data="add_more")],
+        [InlineKeyboardButton(tr(lang, "btn_generate"), callback_data="generate")],
+    ])
+
+
+def product_keyboard(lang: str) -> InlineKeyboardMarkup:
+    """Все товары по 2 в ряд; в конце — «Другое» / «Boshqa»."""
+    rows = []
+    for i in range(0, len(PRODUCTS), 2):
+        row = []
+        for j in range(2):
+            idx = i + j
+            if idx >= len(PRODUCTS):
+                break
+            p = PRODUCTS[idx]
+            label = f"{p['name']} ({p['density']})"
+            if len(label) > 64:
+                short = p["name"]
+                if len(short) > 40:
+                    short = short[:39] + "…"
+                label = f"{short} ({p['density']})"
+            row.append(InlineKeyboardButton(label, callback_data=f"prod_{idx}"))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(tr(lang, "btn_other"), callback_data="prod_other")])
+    return InlineKeyboardMarkup(rows)
+
+
+# ── Вспомогательное ──────────────────────────────────────────────────────
+
 def fmt_num(n: float) -> str:
     return f"{n:,.0f}".replace(",", " ")
+
+
+def _lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> str:
+    """Текущий язык пользователя: из user_data → из файла → DEFAULT_LANG."""
+    if context.user_data.get("lang") in SUPPORTED:
+        return context.user_data["lang"]
+    if update.effective_user:
+        saved = get_lang(update.effective_user.id)
+        if saved in SUPPORTED:
+            context.user_data["lang"] = saved
+            return saved
+    return DEFAULT_LANG
 
 
 def _kp_counter_file() -> str:
@@ -166,68 +220,56 @@ def parse_positive_float(text: str):
         return None
 
 
-def product_keyboard() -> InlineKeyboardMarkup:
-    """Все товары сразу, по 2 в ряд; в конце — «Другое»."""
-    rows = []
-    for i in range(0, len(PRODUCTS), 2):
-        row = []
-        for j in range(2):
-            idx = i + j
-            if idx >= len(PRODUCTS):
-                break
-            p = PRODUCTS[idx]
-            label = f"{p['name']} ({p['density']})"
-            if len(label) > 64:
-                short = p["name"]
-                if len(short) > 40:
-                    short = short[:39] + "…"
-                label = f"{short} ({p['density']})"
-            row.append(InlineKeyboardButton(label, callback_data=f"prod_{idx}"))
-        rows.append(row)
-    rows.append([InlineKeyboardButton("Другое", callback_data="prod_other")])
-    return InlineKeyboardMarkup(rows)
-
-
-def item_summary_line(it: dict, idx: int) -> str:
+def item_summary_line(it: dict, idx: int, lang: str) -> str:
     parts = [it["name"]]
     if it.get("density") is not None:
         parts.append(f"ρ {int(it['density'])}")
     if it.get("thickness"):
-        parts.append(f"{int(it['thickness'])} мм")
+        parts.append(f"{int(it['thickness'])} {tr(lang, 'mm')}")
     spec = " | ".join(parts)
+    cur = tr(lang, "currency")
     return (
         f"{idx}. {spec}\n"
-        f"   {it['qty_fmt']} {it['unit']} × {it['price_fmt']} = *{it['total_fmt']} сум*"
+        f"   {it['qty_fmt']} {it['unit']} × {it['price_fmt']} = *{it['total_fmt']} {cur}*"
     )
 
 
-def items_text(items: list) -> str:
-    return "\n".join(item_summary_line(it, i) for i, it in enumerate(items, 1))
+def items_text(items: list, lang: str) -> str:
+    return "\n".join(item_summary_line(it, i, lang) for i, it in enumerate(items, 1))
 
 
-async def _ask_product(msg, context) -> int:
+async def _ask_product(msg, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("lang", DEFAULT_LANG)
     n = len(context.user_data.get("items", [])) + 1
     await msg.reply_text(
-        f"*Позиция {n}.* Выберите товар из каталога или *Другое*, "
-        "чтобы ввести наименование вручную:",
+        tr(lang, "ask_product", n=n),
         parse_mode="Markdown",
-        reply_markup=product_keyboard(),
+        reply_markup=product_keyboard(lang),
     )
     return ASK_PRODUCT
 
 
-async def _ask_thickness(msg, context) -> int:
+async def _ask_thickness(msg, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("lang", DEFAULT_LANG)
     name = context.user_data["current_item"]["name"]
     dens = context.user_data["current_item"].get("density")
-    dens_line = f"*Плотность:* {int(dens)} кг/м³\n" if dens is not None else ""
+    dens_line = tr(lang, "density_line", density=int(dens)) if dens is not None else ""
     await msg.reply_text(
-        f"*{name}*\n{dens_line}\n"
-        "*Размер* (толщина, мм), например: `50` или `100`.\n"
-        "_При отсутствии данных нажмите «Пропустить»._",
+        tr(lang, "ask_thickness", name=name, dens_line=dens_line),
         parse_mode="Markdown",
-        reply_markup=SKIP_KB,
+        reply_markup=skip_kb(lang),
     )
     return ASK_ITEM_THICK
+
+
+async def _ask_unit(msg, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = context.user_data.get("lang", DEFAULT_LANG)
+    await msg.reply_text(
+        tr(lang, "ask_unit"),
+        parse_mode="Markdown",
+        reply_markup=unit_kb(lang),
+    )
+    return ASK_ITEM_UNIT
 
 
 # ── Команды ──────────────────────────────────────────────────────────────
@@ -236,50 +278,82 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data.clear()
     context.user_data["items"] = []
     context.user_data["nds_rate"] = DEFAULT_NDS_RATE
-    return await _ask_product(update.message, context)
+
+    saved = get_lang(update.effective_user.id) if update.effective_user else None
+    if saved in SUPPORTED:
+        context.user_data["lang"] = saved
+        return await _ask_product(update.message, context)
+
+    await update.message.reply_text(
+        "Tilni tanlang / Выберите язык:",
+        reply_markup=LANG_KB,
+    )
+    return ASK_LANG
+
+
+async def step_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    q = update.callback_query
+    await q.answer()
+    lang = "uz" if q.data == "lang_uz" else "ru"
+    context.user_data["lang"] = lang
+    if update.effective_user:
+        set_lang(update.effective_user.id, lang)
+    await q.message.edit_text(tr(lang, "lang_saved"))
+    return await _ask_product(q.message, context)
 
 
 async def cmd_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     context.user_data.clear()
     await update.message.reply_text(
-        "Создание коммерческого предложения отменено.\n"
-        "Чтобы начать заново, отправьте команду /start.",
+        tr(lang, "cancel"),
         reply_markup=ReplyKeyboardRemove(),
     )
     return ConversationHandler.END
 
 
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    lang = _lang(update, context)
+    await update.message.reply_text(tr(lang, "help"), parse_mode="Markdown")
+
+
+async def cmd_lang(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
-        "*Команды:*\n"
-        "/start — новое КП\n"
-        "/cancel — отмена\n\n"
-        "Товар — из каталога или вручную (кнопка «Другое»).\n"
-        "Кнопка «Создать КП (PDF)» — сразу формирует документ.",
-        parse_mode="Markdown",
+        "Tilni tanlang / Выберите язык:",
+        reply_markup=GLANG_KB,
     )
 
 
+async def cb_lang_global(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    q = update.callback_query
+    await q.answer()
+    lang = "uz" if q.data == "glang_uz" else "ru"
+    context.user_data["lang"] = lang
+    if update.effective_user:
+        set_lang(update.effective_user.id, lang)
+    await q.message.edit_text(tr(lang, "lang_saved"))
+
+
+# ── Шаги диалога ─────────────────────────────────────────────────────────
+
 async def step_product_other(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     q = update.callback_query
     await q.answer()
     await q.message.edit_reply_markup(reply_markup=None)
-    await q.message.reply_text(
-        "Введите *наименование товара* одним сообщением "
-        "(до 300 символов). Плотность в каталог не подставляется — при необходимости колонку можно скрыть в PDF.",
-        parse_mode="Markdown",
-    )
+    await q.message.reply_text(tr(lang, "ask_custom_name"), parse_mode="Markdown")
     return ASK_CUSTOM_NAME
 
 
 async def step_custom_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     raw = (update.message.text or "").strip()
     name = " ".join(raw.split())
     if not name:
-        await update.message.reply_text("Наименование не может быть пустым. Введите текст.")
+        await update.message.reply_text(tr(lang, "err_name_empty"))
         return ASK_CUSTOM_NAME
     if len(name) > 300:
-        await update.message.reply_text("Слишком длинное наименование (макс. 300 символов). Сократите и отправьте снова.")
+        await update.message.reply_text(tr(lang, "err_name_long"))
         return ASK_CUSTOM_NAME
     context.user_data["current_item"] = {
         "name": name,
@@ -287,11 +361,12 @@ async def step_custom_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         "thickness": None,
         "from_catalog": False,
     }
-    await update.message.reply_text(f"Принято:\n{name}")
+    await update.message.reply_text(tr(lang, "name_accepted", name=name))
     return await _ask_thickness(update.message, context)
 
 
 async def step_product_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     q = update.callback_query
     await q.answer()
 
@@ -305,19 +380,20 @@ async def step_product_pick(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     }
     await q.message.edit_reply_markup(reply_markup=None)
     await q.message.reply_text(
-        f"*{p['name']}*, плотность {p['density']} кг/м³",
+        tr(lang, "product_picked", name=p["name"], density=p["density"]),
         parse_mode="Markdown",
     )
     return await _ask_thickness(q.message, context)
 
 
 async def step_thick_text(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     val = parse_positive_float(update.message.text)
     if val is None:
         await update.message.reply_text(
-            "Введите число в мм или нажмите «Пропустить».",
+            tr(lang, "err_thick"),
             parse_mode="Markdown",
-            reply_markup=SKIP_KB,
+            reply_markup=skip_kb(lang),
         )
         return ASK_ITEM_THICK
     context.user_data["current_item"]["thickness"] = val
@@ -331,20 +407,11 @@ async def step_thick_skip(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     return await _ask_unit(q.message, context)
 
 
-async def _ask_unit(msg, context) -> int:
-    await msg.reply_text(
-        "Выберите *единицу измерения*:",
-        parse_mode="Markdown",
-        reply_markup=UNIT_KEYBOARD,
-    )
-    return ASK_ITEM_UNIT
-
-
 async def step_unit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     context.user_data["current_item"]["unit"] = update.message.text.strip()
     await update.message.reply_text(
-        "*Цена за единицу* (сум, с НДС).\n"
-        "Например: `32085`",
+        tr(lang, "ask_price"),
         parse_mode="Markdown",
         reply_markup=ReplyKeyboardRemove(),
     )
@@ -352,23 +419,24 @@ async def step_unit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 
 async def step_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     val = parse_positive_float(update.message.text)
     if val is None:
-        await update.message.reply_text("Введите корректную цену (положительное число).")
+        await update.message.reply_text(tr(lang, "err_price"))
         return ASK_ITEM_PRICE
     context.user_data["current_item"]["price"] = val
     await update.message.reply_text(
-        f"Цена: *{fmt_num(val)} сум*\n\n"
-        "*Количество*:",
+        tr(lang, "ask_qty", price=fmt_num(val)),
         parse_mode="Markdown",
     )
     return ASK_ITEM_QTY
 
 
 async def step_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     val = parse_positive_float(update.message.text)
     if val is None:
-        await update.message.reply_text("Введите количество (положительное число).")
+        await update.message.reply_text(tr(lang, "err_qty"))
         return ASK_ITEM_QTY
 
     item = context.user_data["current_item"]
@@ -387,22 +455,23 @@ async def step_qty(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     nds_line = ""
     if nds_rate:
         nds_sum = grand * nds_rate / (100 + nds_rate)
-        nds_line = f"НДС {nds_rate}%: *{fmt_num(nds_sum)} сум*\n"
+        nds_line = tr(lang, "nds_line", rate=nds_rate, sum=fmt_num(nds_sum))
 
     await update.message.reply_text(
-        f"*Позиция добавлена.*\n\n"
-        f"{items_text(all_items)}\n\n"
-        f"———————————————————\n"
-        f"{nds_line}"
-        f"*Итого: {fmt_num(grand)} сум*\n\n"
-        f"Выберите действие:",
+        tr(
+            lang, "position_added",
+            items_text=items_text(all_items, lang),
+            nds_line=nds_line,
+            grand=fmt_num(grand),
+        ),
         parse_mode="Markdown",
-        reply_markup=MORE_KB,
+        reply_markup=more_kb(lang),
     )
     return ASK_MORE
 
 
 async def step_more(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    lang = _lang(update, context)
     q = update.callback_query
     await q.answer()
 
@@ -410,12 +479,13 @@ async def step_more(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return await _ask_product(q.message, context)
 
     await q.message.edit_reply_markup(reply_markup=None)
-    await q.message.reply_text("Формируется PDF-документ…")
+    await q.message.reply_text(tr(lang, "generating"))
     await _do_generate(q.message, context)
     return ConversationHandler.END
 
 
 async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
+    lang = context.user_data.get("lang", DEFAULT_LANG)
     ud = context.user_data
     kp_number = next_kp_number()
     today = date.today().strftime("%d.%m.%Y")
@@ -440,6 +510,7 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         "nds_fmt": fmt_num(nds_amount) if nds_amount else None,
         "subtotal_fmt": fmt_num(subtotal),
         "grand_total_fmt": fmt_num(grand),
+        "lang": lang,
         **PDF_TABLE_DEFAULTS,
         "items": items,
     }
@@ -452,12 +523,12 @@ async def _do_generate(message, context: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_document(
             document=bio,
             filename=pdf_name,
-            caption=f"{today}\n\n/start — новое предложение",
+            caption=tr(lang, "caption", today=today),
         )
     except Exception as e:
         logger.exception("Ошибка генерации PDF")
         await message.reply_text(
-            f"*Ошибка при создании PDF:*\n`{e}`",
+            tr(lang, "pdf_error", e=e),
             parse_mode="Markdown",
         )
 
@@ -481,6 +552,7 @@ def main() -> None:
     conv = ConversationHandler(
         entry_points=[CommandHandler("start", cmd_start)],
         states={
+            ASK_LANG: [CallbackQueryHandler(step_lang, pattern=r"^lang_(ru|uz)$")],
             ASK_PRODUCT: [
                 CallbackQueryHandler(step_product_pick, pattern=r"^prod_\d+$"),
                 CallbackQueryHandler(step_product_other, pattern="^prod_other$"),
@@ -503,6 +575,8 @@ def main() -> None:
 
     app.add_handler(conv)
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("lang", cmd_lang))
+    app.add_handler(CallbackQueryHandler(cb_lang_global, pattern=r"^glang_(ru|uz)$"))
 
     logger.info("Бот запущен")
     app.run_polling(allowed_updates=Update.ALL_TYPES)

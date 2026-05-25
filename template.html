@@ -191,38 +191,31 @@
     </div>
 
     <div class="company-box">
-      <p class="company-title">СП ООО «KHOREZM INSULATION GROUP»</p>
-      <p>Республика Узбекистан, Хорезмская область, г. Урганч, ул. Саноатчилар дом № 1.</p>
-      <p>ИНН: 308 351 049, р/с: 20 208 000 505 368 522 001, USD: 20208 840 505 368 522 005,</p>
-      <p>Банк: АКБ "Узпромстройбанк" головной офис, МФО: 00440; ОКЕД: 23990; SWIFT: ULSIUZ22</p>
-      <p>РЕГИСТРАЦИОННЫЙ НОМЕР НДС: - 333010177397</p>
+      <p class="company-title">{{ t.company_title }}</p>
+      <p>{{ t.address }}</p>
+      <p>{{ t.bank1 }}</p>
+      <p>{{ t.bank2 }}</p>
+      <p>{{ t.vat_num }}</p>
     </div>
 
-    <p class="intro">
-      Компания KHOREZM INSULATION GROUP предлагает надежную и экологичную
-      базальтовую теплоизоляцию для широкого спектра строительных и промышленных
-      задач. Мы специализируемся на производстве и поставках базальтовой ваты,
-      которая:
-    </p>
+    <p class="intro">{{ t.intro }}</p>
     <ul class="intro-list">
-      <li>Эффективно сохраняет тепло, снижая энергозатраты зданий.</li>
-      <li>Обладает высокой огнестойкостью и не поддерживает горение.</li>
-      <li>Поглощает шум, улучшая звукоизоляцию помещений.</li>
-      <li>Устойчива к воздействию влаги, плесени и микроорганизмов.</li>
-      <li>Обеспечивает долговечность и экологическую безопасность строительных решений.</li>
+      {% for li in t.intro_list %}
+      <li>{{ li }}</li>
+      {% endfor %}
     </ul>
 
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th class="td-name">Наименование</th>
-            {% if show_density %}<th class="col-num">Плотность</th>{% endif %}
-            {% if show_size %}<th class="col-num">Размер</th>{% endif %}
-            {% if show_qty %}<th class="col-num">Кол-во</th>{% endif %}
-            {% if show_unit %}<th class="col-num">Ед.изм</th>{% endif %}
-            {% if show_price %}<th class="col-price">Цена с НДС</th>{% endif %}
-            {% if show_line_total %}<th class="col-sum">Сумма</th>{% endif %}
+            <th class="td-name">{{ t.col_name }}</th>
+            {% if show_density %}<th class="col-num">{{ t.col_density }}</th>{% endif %}
+            {% if show_size %}<th class="col-num">{{ t.col_size }}</th>{% endif %}
+            {% if show_qty %}<th class="col-num">{{ t.col_qty }}</th>{% endif %}
+            {% if show_unit %}<th class="col-num">{{ t.col_unit }}</th>{% endif %}
+            {% if show_price %}<th class="col-price">{{ t.col_price }}</th>{% endif %}
+            {% if show_line_total %}<th class="col-sum">{{ t.col_sum }}</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -254,13 +247,13 @@
     </div>
 
     {% if show_total %}
-    <div class="table-total">Сумма: {{ grand_total_fmt }}</div>
+    <div class="table-total">{{ t.total_label }}</div>
     {% endif %}
 
     <div class="conditions">
-      <p>• Условия оплаты: 100% предоплата;</p>
-      <p>• Страна производителя: Республика Узбекистан;</p>
-      <p>• Условия доставки: Самовывоз или доставка до объекта покупателя;</p>
+      {% for cond in t.conditions %}
+      <p>{{ cond }}</p>
+      {% endfor %}
     </div>
   </div>
 

@@ -1,5 +1,6 @@
 .env
 .kp_counter
+.user_lang.json
 __pycache__/
 *.pyc
 .venv/

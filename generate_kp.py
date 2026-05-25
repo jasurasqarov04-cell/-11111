@@ -14,6 +14,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from catalog import format_product_name
+from translations import pdf_dict, DEFAULT_LANG
 
 # Путь к папке с шаблоном
 TEMPLATE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -187,6 +188,14 @@ def generate_pdf(data: dict) -> bytes:
     render_data["show_total"] = data.get("show_total", True)
     render_data["items"] = _prepare_items(data.get("items", []), table_opts)
 
+    lang = data.get("lang") or DEFAULT_LANG
+    t = pdf_dict(lang)
+    t["total_label"] = t.get("total", "Сумма: {grand}").format(
+        grand=data.get("grand_total_fmt", "")
+    )
+    render_data["t"] = t
+    render_data["lang"] = lang
+
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
     template = env.get_template(TEMPLATE_FILE)
     html_content = _inline_assets(template.render(**render_data))
@@ -261,6 +270,7 @@ if __name__ == "__main__":
         "show_price": True,
         "show_line_total": True,
         "show_total": True,
+        "lang": "ru",
         "items": [
             {
                 "name": "Thermo Vent Pro",
