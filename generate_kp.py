@@ -188,13 +188,13 @@ def generate_pdf(data: dict) -> bytes:
     render_data["show_total"] = data.get("show_total", True)
     render_data["items"] = _prepare_items(data.get("items", []), table_opts)
 
-    lang = data.get("lang") or DEFAULT_LANG
-    t = pdf_dict(lang)
+    # PDF всегда на русском, независимо от языка интерфейса бота.
+    t = pdf_dict(DEFAULT_LANG)
     t["total_label"] = t.get("total", "Сумма: {grand}").format(
         grand=data.get("grand_total_fmt", "")
     )
     render_data["t"] = t
-    render_data["lang"] = lang
+    render_data["lang"] = DEFAULT_LANG
 
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
     template = env.get_template(TEMPLATE_FILE)
